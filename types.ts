@@ -1,4 +1,3 @@
-
 export type PieceSymbol = 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
 export type Color = 'w' | 'b';
 
@@ -26,6 +25,7 @@ export interface EngineUpdate {
 export enum EngineState {
   Idle = 'IDLE',
   Thinking = 'THINKING',
+  Simulating = 'SIMULATING',
 }
 
 // Basic type definitions for chess.js loaded from CDN
@@ -51,6 +51,7 @@ export interface IChessJs {
   in_checkmate(): boolean;
   in_stalemate(): boolean;
   in_draw(): boolean;
+  game_over(): boolean;
   history(): string[];
   undo(): ChessJsMove | null;
 }

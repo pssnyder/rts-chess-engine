@@ -6,9 +6,15 @@ import EngineInfo from './components/EngineInfo';
 import GeminiAnalysis from './components/GeminiAnalysis';
 import ChessEngine from './services/chessEngine';
 import { getTalStyleAnalysis } from './services/geminiService';
-// FIX: EngineState is defined in types.ts, not constants.ts
 import { STARTING_FEN } from './constants';
 import { EngineState, type EngineUpdate, type IChessJs } from './types';
+
+// Add game_over to IChessJs in types.ts if it's missing
+declare global {
+  interface Window {
+    Chess: IChessJs;
+  }
+}
 
 function App() {
   const [fen, setFen] = useState<string>(STARTING_FEN);
@@ -18,7 +24,11 @@ function App() {
   const [isGeminiLoading, setIsGeminiLoading] = useState<boolean>(false);
   
   const engineRef = useRef<ChessEngine | null>(null);
+  // FIX: Corrected gameRef initialization. The fallback to `new Function()` caused a type error
+  // as it does not create an object that conforms to IChessJs. This change assumes `Chess`
+  // is globally available, consistent with other parts of the app like ChessEngine.
   const gameRef = useRef<IChessJs>(new Chess());
+  const isSimulatingRef = useRef(false);
 
   const handleEngineUpdate = useCallback((update: EngineUpdate) => {
     setEngineUpdate(update);
@@ -27,11 +37,12 @@ function App() {
   useEffect(() => {
     engineRef.current = new ChessEngine(handleEngineUpdate);
     return () => {
+      isSimulatingRef.current = false;
       engineRef.current?.stop();
     };
   }, [handleEngineUpdate]);
 
-  const handleStart = useCallback(() => {
+  const handleAnalyze = useCallback(() => {
     try {
       if (!gameRef.current.load(fen)) {
         alert("Invalid FEN string.");
@@ -40,21 +51,49 @@ function App() {
       setEngineState(EngineState.Thinking);
       setEngineUpdate(null);
       setGeminiAnalysis(null);
-      engineRef.current?.start(fen);
+      engineRef.current?.findBestMove(fen, 20); // Deeper search for analysis
     } catch (e) {
       console.error(e);
       alert("An error occurred. Check the FEN string.");
       setEngineState(EngineState.Idle);
     }
   }, [fen]);
+
+  const handleSimulate = useCallback(async () => {
+    if (!gameRef.current.load(fen)) {
+      alert("Invalid FEN string.");
+      return;
+    }
+    
+    setEngineState(EngineState.Simulating);
+    setGeminiAnalysis(null);
+    isSimulatingRef.current = true;
+
+    while (isSimulatingRef.current && !gameRef.current.game_over()) {
+      const bestMove = await engineRef.current?.findBestMove(gameRef.current.fen());
+      
+      if (bestMove && isSimulatingRef.current) {
+        gameRef.current.move(bestMove);
+        setFen(gameRef.current.fen());
+        await new Promise(resolve => setTimeout(resolve, 500)); // Delay for visibility
+      } else {
+        break; // Engine was stopped or no move found
+      }
+    }
+
+    isSimulatingRef.current = false;
+    setEngineState(EngineState.Idle);
+
+  }, [fen]);
   
   const handleStop = useCallback(() => {
+    isSimulatingRef.current = false;
     engineRef.current?.stop();
     setEngineState(EngineState.Idle);
 
     if (engineUpdate && engineUpdate.bestMove && engineUpdate.evaluation) {
         setIsGeminiLoading(true);
-        getTalStyleAnalysis(fen, engineUpdate.evaluation, engineUpdate.bestMove)
+        getTalStyleAnalysis(gameRef.current.fen(), engineUpdate.evaluation, engineUpdate.bestMove)
             .then(analysis => {
                 setGeminiAnalysis(analysis);
             })
@@ -66,15 +105,7 @@ function App() {
                 setIsGeminiLoading(false);
             });
     }
-  }, [engineUpdate, fen]);
-
-  useEffect(() => {
-    const isFenValid = gameRef.current.load(fen);
-    if (!isFenValid) {
-        // handle invalid fen if needed, e.g., show an error
-    }
-  }, [fen]);
-
+  }, [engineUpdate]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 sm:p-6 lg:p-8">
@@ -96,7 +127,8 @@ function App() {
               engineState={engineState}
               fen={fen}
               setFen={setFen}
-              onStart={handleStart}
+              onAnalyze={handleAnalyze}
+              onSimulate={handleSimulate}
               onStop={handleStop}
             />
             <EngineInfo engineUpdate={engineUpdate} turn={gameRef.current.turn()} />

@@ -1,4 +1,3 @@
-
 // Piece Square Tables and material values
 // Values are from white's perspective. Flip for black.
 
@@ -89,3 +88,11 @@ export const PST: { [key: string]: number[] } = {
 export const CASTLING_BONUS = 50;
 export const CHECK_PENALTY = -75;
 export const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+export const STARTING_POSITIONS = [
+    { name: 'Standard', fen: STARTING_FEN },
+    { name: 'Sicilian Defense', fen: 'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2' },
+    { name: 'Ruy Lopez', fen: 'r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3' },
+    { name: 'Queen\'s Gambit', fen: 'rnbqkbnr/ppp2ppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 2' },
+    { name: 'King\'s Indian Defense', fen: 'rnbq1rk1/ppp1ppbp/3p1np1/8/2PPP3/2N2N2/PP3PPP/R1BQKB1R w KQ - 0 6' },
+];

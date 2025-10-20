@@ -1,8 +1,7 @@
-
 import type { Evaluation, IChessJs, ChessJsMove, Piece } from '../types';
 import { PIECE_VALUES, PST, CASTLING_BONUS, CHECK_PENALTY } from '../constants';
 
-const MAX_DEPTH = 20; // Target depth
+const MAX_SEARCH_DEPTH = 10; // Per-move search depth for simulation
 
 class ChessEngine {
   private game: IChessJs;
@@ -10,6 +9,7 @@ class ChessEngine {
   private onUpdate: (update: any) => void;
   private startTime = 0;
   private isThinking = false;
+  private currentBestMove: string | null = null;
 
   constructor(onUpdate: (update: any) => void) {
     this.game = new Chess();
@@ -20,38 +20,33 @@ class ChessEngine {
     this.isThinking = false;
   }
 
-  public async start(fen: string) {
+  public async findBestMove(fen: string, searchDepth: number = MAX_SEARCH_DEPTH): Promise<string | null> {
     this.isThinking = true;
     this.game.load(fen);
     this.nodes = 0;
     this.startTime = performance.now();
-    let bestMove: string | null = null;
-    let bestEval: Evaluation | null = null;
+    this.currentBestMove = null;
 
-    for (let depth = 1; depth <= MAX_DEPTH; depth++) {
+    for (let depth = 1; depth <= searchDepth; depth++) {
         if (!this.isThinking) break;
 
         const result = this.negamax(depth, -Infinity, Infinity);
-        bestMove = result.move;
-        bestEval = this.evaluate();
+        this.currentBestMove = result.move;
         
         const nps = this.nodes / ((performance.now() - this.startTime) / 1000);
         this.onUpdate({
             depth,
-            bestMove,
-            evaluation: bestEval,
+            bestMove: this.currentBestMove,
+            evaluation: this.evaluate(),
             nodes: this.nodes,
             nps: Math.round(nps),
         });
 
         // Yield to the event loop to keep UI responsive
         await new Promise(resolve => setTimeout(resolve, 0));
-        
-        if (depth === 10 && (performance.now() - this.startTime) > 1000) {
-            console.warn(`Depth 10 took more than 1 second: ${performance.now() - this.startTime}ms`);
-        }
     }
     this.isThinking = false;
+    return this.currentBestMove;
   }
   
   private evaluate(): Evaluation {
@@ -84,10 +79,9 @@ class ChessEngine {
     if (castling.includes('K') || castling.includes('Q')) kingSafety += CASTLING_BONUS;
     if (castling.includes('k') || castling.includes('q')) kingSafety -= CASTLING_BONUS;
     
-    const tempGame = new Chess(fen);
-    if (tempGame.turn() === 'w' && tempGame.in_check()) kingSafety += CHECK_PENALTY;
-    tempGame.load(fen.replace(' w ', ' b '));
-    if (tempGame.turn() === 'b' && tempGame.in_check()) kingSafety -= CHECK_PENALTY;
+    if (this.game.in_check()) {
+       kingSafety += this.game.turn() === 'w' ? CHECK_PENALTY : -CHECK_PENALTY;
+    }
 
     const perspective = this.game.turn() === 'w' ? 1 : -1;
     const total = (material + kingSafety) * perspective;
@@ -96,24 +90,17 @@ class ChessEngine {
   }
   
   private orderMoves(moves: ChessJsMove[]): ChessJsMove[] {
-      const getPieceValue = (piece: Piece) => {
-          // This is a simplified version of the user's request.
-          // A full implementation would need to get the piece's square to calculate its PST value.
-          return PIECE_VALUES[piece.type];
-      };
-      
+      // Basic move ordering: captures, checks, then quiet moves.
       return moves.sort((a, b) => {
           const aIsCapture = a.flags.includes('c');
           const bIsCapture = b.flags.includes('c');
-          if (aIsCapture && !bIsCapture) return -1;
-          if (!aIsCapture && bIsCapture) return 1;
+          if (aIsCapture !== bIsCapture) return aIsCapture ? -1 : 1;
 
           const aIsCheck = a.san.includes('+');
           const bIsCheck = b.san.includes('+');
-          if (aIsCheck && !bIsCheck) return -1;
-          if (!aIsCheck && bIsCheck) return 1;
+          if (aIsCheck !== bIsCheck) return aIsCheck ? -1 : 1;
           
-          return getPieceValue(this.game.get(b.to) || {type: 'p', color: 'w'}) - getPieceValue(this.game.get(a.to) || {type: 'p', color: 'w'});
+          return 0; // No further sorting for simplicity
       });
   }
 
@@ -127,6 +114,10 @@ class ChessEngine {
     let bestMove = null;
     
     const moves = this.game.moves({ verbose: true });
+    if (moves.length === 0) { // Handle stalemate/checkmate at leaf
+        return { value: this.evaluate().total, move: null };
+    }
+
     const orderedMoves = this.orderMoves(moves);
 
     for (const move of orderedMoves) {
@@ -141,9 +132,8 @@ class ChessEngine {
         max = score;
         bestMove = move.san;
       }
-      if (score > alpha) {
-        alpha = score;
-      }
+      alpha = Math.max(alpha, score);
+
       if (alpha >= beta) {
         break; // Pruning
       }

@@ -5,12 +5,28 @@ interface ChessboardProps {
   fen: string;
 }
 
-const getPieceImageUrl = (piece: Piece): string => {
-  const color = piece.color; // 'w' or 'b'
-  const pieceType = piece.type.toUpperCase(); // 'P', 'N', 'B', 'R', 'Q', 'K'
-  // Use local images from the /images/ folder
-  return `/images/${color}${pieceType}.png`;
+const pieceEmoji: { [color: string]: { [piece: string]: string } } = {
+  w: { p: '♙', n: '♘', b: '♗', r: '♖', q: '♕', k: '♔' },
+  b: { p: '♟︎', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' },
 };
+
+const PieceIcon: React.FC<{ piece: Piece }> = ({ piece }) => {
+  const emoji = pieceEmoji[piece.color][piece.type];
+  const pieceName = {
+      p: 'Pawn', n: 'Knight', b: 'Bishop', r: 'Rook', q: 'Queen', k: 'King'
+  }[piece.type];
+  
+  return (
+    <span
+      className="text-4xl md:text-5xl select-none"
+      role="img"
+      aria-label={`${piece.color === 'w' ? 'White' : 'Black'} ${pieceName}`}
+    >
+      {emoji}
+    </span>
+  );
+};
+
 
 const Chessboard: React.FC<ChessboardProps> = ({ fen }) => {
   const board = React.useMemo(() => {
@@ -49,9 +65,7 @@ const Chessboard: React.FC<ChessboardProps> = ({ fen }) => {
                 key={`${rowIndex}-${colIndex}`}
                 className={`w-[12.5%] aspect-square flex items-center justify-center ${bgClass}`}
               >
-                {piece && (
-                  <img src={getPieceImageUrl(piece)} alt={`${piece.color} ${piece.type}`} className="w-full h-full object-contain" />
-                )}
+                {piece && <PieceIcon piece={piece} />}
               </div>
             );
           })}
