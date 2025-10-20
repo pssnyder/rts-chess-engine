@@ -1,0 +1,5 @@
+{
+  "name": "Ultralight Chess Engine UI",
+  "description": "A web interface to visualize and interact with a conceptual ultralight, high-depth chess engine. The UI displays the engine's evaluation, best move, and provides AI-powered analysis in the style of Mikhail Tal.",
+  "requestFramePermissions": []
+}
