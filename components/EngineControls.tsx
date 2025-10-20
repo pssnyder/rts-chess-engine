@@ -9,9 +9,10 @@ interface EngineControlsProps {
   onAnalyze: () => void;
   onStop: () => void;
   onSimulate: () => void;
+  onFlipBoard: () => void;
 }
 
-const EngineControls: React.FC<EngineControlsProps> = ({ engineState, fen, setFen, onAnalyze, onStop, onSimulate }) => {
+const EngineControls: React.FC<EngineControlsProps> = ({ engineState, fen, setFen, onAnalyze, onStop, onSimulate, onFlipBoard }) => {
   const isBusy = engineState === EngineState.Thinking || engineState === EngineState.Simulating;
   
   const handlePositionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -27,14 +28,16 @@ const EngineControls: React.FC<EngineControlsProps> = ({ engineState, fen, setFe
           <select 
             id="start-pos"
             onChange={handlePositionChange}
-            value={fen}
+            value={STARTING_POSITIONS.find(p => p.fen === fen)?.fen || fen}
             disabled={isBusy}
             className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50"
           >
             {STARTING_POSITIONS.map(pos => (
                 <option key={pos.name} value={pos.fen}>{pos.name}</option>
             ))}
-             <option key="custom" value={fen} disabled={!STARTING_POSITIONS.find(p => p.fen === fen)}>Custom FEN</option>
+            {!STARTING_POSITIONS.find(p => p.fen === fen) && (
+                 <option key="custom" value={fen}>Custom FEN</option>
+            )}
           </select>
         </div>
         <div className="flex items-center gap-2">
@@ -61,7 +64,7 @@ const EngineControls: React.FC<EngineControlsProps> = ({ engineState, fen, setFe
                 onClick={onAnalyze}
                 className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-4 rounded-md transition-colors"
               >
-                Analyze Position
+                Make Engine Move
               </button>
               <button
                 onClick={onSimulate}
@@ -75,10 +78,17 @@ const EngineControls: React.FC<EngineControlsProps> = ({ engineState, fen, setFe
               onClick={onStop}
               className="col-span-2 w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-md transition-colors"
             >
-              {engineState === EngineState.Simulating ? 'Stop Simulation' : 'Stop Analysis'}
+              {engineState === EngineState.Simulating ? 'Stop Simulation' : 'Stop Thinking'}
             </button>
           )}
         </div>
+        <button
+            onClick={onFlipBoard}
+            className="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
+            disabled={isBusy}
+        >
+            Flip Board
+        </button>
       </div>
     </div>
   );

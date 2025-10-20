@@ -43,8 +43,9 @@ export interface IChessJs {
   fen(): string;
   load(fen: string): boolean;
   move(move: string | { from: string; to: string; promotion?: string }): ChessJsMove | null;
-  moves(options: { verbose: true }): ChessJsMove[];
-  moves(options?: { verbose?: false }): string[];
+  // FIX: Add optional `square` property to `moves` method options to allow getting moves for a specific piece.
+  moves(options: { verbose: true; square?: string; }): ChessJsMove[];
+  moves(options?: { verbose?: false; square?: string; }): string[];
   turn(): Color;
   get(square: string): Piece | null;
   in_check(): boolean;
